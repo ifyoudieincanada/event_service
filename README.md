@@ -10,7 +10,7 @@ def handle_event(event) do
 
   Enum.map(subscribers, fn subscriber ->
     Task.async(fn ->
-      HTTP.post(subscribers.url, format(subscribers.body))
+      HTTP.post(subscriber.url, format(event.body))
     end)
   end)
   |> Enum.each(fn pid ->
@@ -18,6 +18,13 @@ def handle_event(event) do
   end)
 end
 ```
+
+Tables:
+
+  * Subscribers
+      Columns: `event_name`, `url`
+
+      Index on `event_name` to ensure quick lookups
 
 To start your Phoenix app:
 
