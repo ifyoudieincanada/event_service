@@ -35,7 +35,7 @@ defmodule EventService.SubscriberController do
               {:ok, [
                 subscriber |
                 Enum.reject(subscribers, fn sub ->
-                  sub.url == subscriber.url and sub.event_name == ^name
+                  sub.url == subscriber.url and sub.event_name == name
                 end)
               ]}
             end

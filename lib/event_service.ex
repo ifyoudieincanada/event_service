@@ -17,7 +17,10 @@ defmodule EventService do
       supervisor(Task.Supervisor, [[name: EventService.TaskSupervisor]]),
 
       # Start your own worker by calling: EventService.Worker.start_link(arg1, arg2, arg3)
-      worker(ConCache, [[], [name: :subscriber_cache]])
+      worker(ConCache, [[
+             ttl_check: :timer.hours(1),
+             ttl: :timer.hours(24)
+           ], [name: :subscriber_cache]])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
