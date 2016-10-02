@@ -34,7 +34,9 @@ defmodule EventService.SubscriberController do
             else
               {:ok, [
                 subscriber |
-                Enum.reject(subscribers, fn sub -> sub.url == subscriber.url end)
+                Enum.reject(subscribers, fn sub ->
+                  sub.url == subscriber.url and sub.event_name == ^name
+                end)
               ]}
             end
           end)
@@ -55,9 +57,8 @@ defmodule EventService.SubscriberController do
   end
 
   defp find_subscribers(event_name) do
-    case ConCache.get(:subscriber_cache, event_name) do
-      nil -> Repo.all(from s in Subscriber, where: s.event_name == ^event_name)
-      subscribers -> subscribers
-    end
+    ConCache.get_or_store(:subscriber_cache, event_name, fn ->
+      Repo.all(from s in Subscriber, where: s.event_name == ^event_name)
+    end)
   end
 end
