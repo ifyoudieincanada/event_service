@@ -12,8 +12,12 @@ defmodule EventService do
       supervisor(EventService.Repo, []),
       # Start the endpoint when the application starts
       supervisor(EventService.Endpoint, []),
+
+      # So we can start Async Tasks
+      supervisor(Task.Supervisor, [[name: EventService.TaskSupervisor]]),
+
       # Start your own worker by calling: EventService.Worker.start_link(arg1, arg2, arg3)
-      # worker(EventService.Worker, [arg1, arg2, arg3]),
+      worker(ConCache, [[], [name: :subscriber_cache]])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html

@@ -19,7 +19,7 @@ defmodule EventService.Mixfile do
   def application do
     [mod: {EventService, []},
      applications: [:phoenix, :phoenix_pubsub, :cowboy, :logger, :gettext,
-                    :phoenix_ecto, :postgrex]]
+                    :phoenix_ecto, :postgrex, :con_cache, :http_client]]
   end
 
   # Specifies which paths to compile per environment.
@@ -35,7 +35,9 @@ defmodule EventService.Mixfile do
      {:phoenix_ecto, "~> 3.0"},
      {:postgrex, ">= 0.0.0"},
      {:gettext, "~> 0.11"},
-     {:cowboy, "~> 1.0"}]
+     {:cowboy, "~> 1.0"},
+     {:con_cache, "~> 0.11.1"},
+     {:http_client, "~> 0.1.0"}]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

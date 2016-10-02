@@ -3,69 +3,61 @@ defmodule EventService.SubscriberController do
 
   alias EventService.Subscriber
 
-  def index(conn, _params) do
-    subscribers = Repo.all(Subscriber)
-    render(conn, "index.json", subscribers: subscribers)
-  end
+  def event(conn, %{"event" => %{"event_name" => name}=event}) do
+    subscribers = find_subscribers(name)
 
-  def create(conn, %{"subscriber" => subscriber_params}) do
-    changeset = Subscriber.changeset(%Subscriber{}, subscriber_params)
-
-    case Repo.insert(changeset) do
-      {:ok, subscriber} ->
-        conn
-        |> put_status(:created)
-        |> put_resp_header("location", subscriber_path(conn, :show, subscriber))
-        |> render("show.json", subscriber: subscriber)
-      {:error, changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render(EventService.ChangesetView, "error.json", changeset: changeset)
-    end
-  end
-
-  def show(conn, %{"id" => id}) do
-    subscriber = Repo.get!(Subscriber, id)
-    render(conn, "show.json", subscriber: subscriber)
-  end
-
-  def update(conn, %{"id" => id, "subscriber" => subscriber_params}) do
-    subscriber = Repo.get!(Subscriber, id)
-    changeset = Subscriber.changeset(subscriber, subscriber_params)
-
-    case Repo.update(changeset) do
-      {:ok, subscriber} ->
-        render(conn, "show.json", subscriber: subscriber)
-      {:error, changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render(EventService.ChangesetView, "error.json", changeset: changeset)
-    end
-  end
-
-  def delete(conn, %{"id" => id}) do
-    subscriber = Repo.get!(Subscriber, id)
-
-    # Here we use delete! (with a bang) because we expect
-    # it to always work (and if it does not, it will raise).
-    Repo.delete!(subscriber)
+    Enum.map(subscribers, fn subscriber ->
+      Task.Supervisor.async(EventService.TaskSupervisor, fn ->
+        Client.do_request(subscriber.url,
+                          event,
+                          %{},
+                          Client.Encoders.JSON,
+                          Client.Decoders.JSON,
+                          &Client.post(&1, &2, &3))
+      end)
+    end)
+    |> Enum.each(&Task.await(&1))
 
     send_resp(conn, :no_content, "")
   end
 
-  def subscribe(conn, %{"subscriber" => subscriber_params}) do
-    changeset = Subscriber.changeset(%Subscriber{}, subscriber_params)
-    #TODO: cache this pls
-    case Repo.insert(changeset) do
-      {:ok, subscriber} ->
+  def subscribe(conn, %{"subscriber" => %{"event_name" => name, "url" => url}=subscriber_params}) do
+    case Repo.one(from s in Subscriber,
+                       where: s.event_name == ^name and s.url == ^url) do
+      nil ->
+        changeset = Subscriber.changeset(%Subscriber{}, subscriber_params)
+        case Repo.insert(changeset) do
+          {:ok, subscriber} ->
+          ConCache.update(:subscriber_cache, subscriber.event_name, fn subscribers ->
+            if is_nil(subscribers) do
+              {:ok, [subscriber]}
+            else
+              {:ok, [
+                subscriber |
+                Enum.reject(subscribers, fn sub -> sub.url == subscriber.url end)
+              ]}
+            end
+          end)
+
+              conn
+              |> put_status(:created)
+              |> render("show.json", subscriber: subscriber)
+          {:error, changeset} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> render(EventService.ChangesetView, "error.json", changeset: changeset)
+        end
+      subscriber ->
         conn
-        |> put_status(:created)
-        |> put_resp_header("location", subscriber_path(conn, :show, subscriber))
+        |> put_status(200)
         |> render("show.json", subscriber: subscriber)
-      {:error, changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render(EventService.ChangesetView, "error.json", changeset: changeset)
+    end
+  end
+
+  defp find_subscribers(event_name) do
+    case ConCache.get(:subscriber_cache, event_name) do
+      nil -> Repo.all(from s in Subscriber, where: s.event_name == ^event_name)
+      subscribers -> subscribers
     end
   end
 end

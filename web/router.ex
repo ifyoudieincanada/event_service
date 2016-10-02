@@ -7,6 +7,8 @@ defmodule EventService.Router do
 
   scope "/", EventService do
     pipe_through :api
-    resources "/subscribers", SubscriberController, except: [:new, :edit]
+
+    post "/subscribe", SubscriberController, :subscribe
+    post "/event", SubscriberController, :event
   end
 end
