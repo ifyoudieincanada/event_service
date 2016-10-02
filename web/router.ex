@@ -5,7 +5,8 @@ defmodule EventService.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/api", EventService do
+  scope "/", EventService do
     pipe_through :api
+    resources "/subscribers", SubscriberController, except: [:new, :edit]
   end
 end
